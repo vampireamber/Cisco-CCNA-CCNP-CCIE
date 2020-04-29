@@ -1,0 +1,95 @@
+1.配置接口IP地址
+Router(config)#hostname R1
+R1(config)#interface ethernet 0/0
+R1(config-if)#ip address 10.1.1.1 255.255.255.0       
+R1(config-if)#no shutdown 
+
+Router(config)#hostname R2
+R2(config)#interface ethernet 0/0
+R2(config-if)#ip address 10.1.1.2 255.255.255.0
+R2(config-if)#no shutdown 
+
+2.测试连通性：
+R1#ping 10.1.1.2
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 10.1.1.2, timeout is 2 seconds:
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 1/1/1 ms
+
+3.查看接口命令：
+R1#show ip interface brief  （查看设备所有接口信息）
+Interface                  IP-Address      OK? Method Status                Protocol
+Ethernet0/0                10.1.1.1        YES manual up                    up      
+Ethernet0/1                unassigned      YES NVRAM  administratively down down    
+Ethernet0/2                unassigned      YES NVRAM  administratively down down    
+Ethernet0/3                unassigned      YES NVRAM  administratively down down    
+
+R1#show interfaces ethernet 0/0 （查看E0/0具体接口信息）
+Ethernet0/0 is up, line protocol is up 
+  Hardware is AmdP2, address is aabb.cc00.1000 (bia aabb.cc00.1000)
+  Internet address is 10.1.1.1/24
+  MTU 1500 bytes, BW 10000 Kbit/sec, DLY 1000 usec, 
+     reliability 255/255, txload 1/255, rxload 1/255
+  Encapsulation ARPA, loopback not set
+  Keepalive set (10 sec)
+  Auto-duplex, Auto Speed, media type is unknown media type
+  input flow-control is off, output flow-control is unsupported
+  ARP type: ARPA, ARP Timeout 04:00:00
+  Last input 00:00:23, output 00:00:03, output hang never
+  Last clearing of "show interface" counters never
+  Input queue: 0/75/0/0 (size/max/drops/flushes); Total output drops: 0
+  Queueing strategy: fifo
+  Output queue: 0/40 (size/max)
+  5 minute input rate 0 bits/sec, 0 packets/sec
+  5 minute output rate 0 bits/sec, 0 packets/sec
+     48 packets input, 11958 bytes, 0 no buffer
+     Received 38 broadcasts (0 IP multicasts)
+     0 runts, 0 giants, 0 throttles 
+     0 input errors, 0 CRC, 0 frame, 0 overrun, 0 ignored
+     0 input packets with dribble condition detected
+     102 packets output, 12729 bytes, 0 underruns
+     0 output errors, 0 collisions, 1 interface resets
+     7 unknown protocol drops
+     0 babbles, 0 late collision, 0 deferred
+     0 lost carrier, 0 no carrier
+     0 output buffer failures, 0 output buffers swapped out
+
+4.在R1上尝试进行telnet链接：（结果失败）
+R1#telnet 10.1.1.2
+Trying 10.1.1.2 ... 
+% Connection refused by remote host
+
+5.配置R2VTY线路：
+R2(config)#line vty 0 4
+R2(config-line)#password cisco （配置登录密码为“cisco”）
+R2(config-line)#login （允许使用密码登录）
+R2(config-line)#transport input telnet （只允许telnet流量进入）
+
+6.在R1上再次尝试telnet登录：
+R1#telnet 10.1.1.2
+Trying 10.1.1.2 ... Open
+
+
+User Access Verification
+
+Password: （注意，这里输入密码不显示）
+R2>
+
+7.尝试进入更高级模式：（失败）
+R2>enable 
+% No password set
+R2>
+
+8.在R2上配置enable密码：
+R2(config)#enable password ccna
+
+9.R1上再次尝试高级权限：
+R2>enable 
+Password: 
+R2#
+
+10.退出方法：
+R2#exit
+
+[Connection to 10.1.1.2 closed by foreign host]
+R1#

@@ -1,0 +1,290 @@
+1.观察物理拓扑，看清连接的接口号，并思考配置思路：
+
+2.配置4台PC的IP地址（都在同一个网段内10.1.1.0/24）：
+PC4> ip 10.1.1.1 255.255.255.0
+PC5> ip 10.1.1.2 255.255.255.0
+PC6> ip 10.1.1.3 255.255.255.0
+PC7> ip 10.1.1.4 255.255.255.0
+
+3.测试PC间连通性：（在没有配置VLAN之前，PC同一网段内是可以通信的）
+PC4> ping 10.1.1.2
+
+84 bytes from 10.1.1.2 icmp_seq=1 ttl=64 time=1.094 ms
+84 bytes from 10.1.1.2 icmp_seq=2 ttl=64 time=4.618 ms
+84 bytes from 10.1.1.2 icmp_seq=3 ttl=64 time=6.221 ms
+84 bytes from 10.1.1.2 icmp_seq=4 ttl=64 time=3.380 ms
+84 bytes from 10.1.1.2 icmp_seq=5 ttl=64 time=4.425 ms
+
+PC4> ping 10.1.1.3
+
+84 bytes from 10.1.1.3 icmp_seq=1 ttl=64 time=1.071 ms
+84 bytes from 10.1.1.3 icmp_seq=2 ttl=64 time=5.422 ms
+84 bytes from 10.1.1.3 icmp_seq=3 ttl=64 time=1.307 ms
+84 bytes from 10.1.1.3 icmp_seq=4 ttl=64 time=4.068 ms
+84 bytes from 10.1.1.3 icmp_seq=5 ttl=64 time=1.218 ms
+
+PC4> ping 10.1.1.4
+
+84 bytes from 10.1.1.4 icmp_seq=1 ttl=64 time=1.494 ms
+84 bytes from 10.1.1.4 icmp_seq=2 ttl=64 time=2.983 ms
+84 bytes from 10.1.1.4 icmp_seq=3 ttl=64 time=5.577 ms
+84 bytes from 10.1.1.4 icmp_seq=4 ttl=64 time=6.209 ms
+84 bytes from 10.1.1.4 icmp_seq=5 ttl=64 time=4.382 ms
+
+4.配置交换机之间的链路为TRUNK（802.1Q封装）：
+SW1(config)#interface ethernet 0/0
+SW1(config-if)#switchport trunk encapsulation dot1q （接口使用802.1Q的Trunk封装形式）
+SW1(config-if)#switchport mode trunk （将接口手工定义为Trunk，不使用DTP自动协商）
+SW1(config)#interface ethernet 0/1
+SW1(config-if)#switchport trunk encapsulation dot1q 
+SW1(config-if)#switchport mode trunk 
+
+SW2(config)#interface ethernet 0/0
+SW2(config-if)#switchport trunk encapsulation dot1q 
+SW2(config-if)#switchport mode trunk 
+
+SW3(config)#interface ethernet 0/0
+SW3(config-if)#switchport trunk encapsulation dot1q 
+SW3(config-if)#switchport mode trunk 
+
+5.3台交换查看Trunk链路状态：
+SW1#show interfaces trunk 
+（接口）   （模式）          （封装类型）    （状态）     （本征vlan）
+Port        Mode             Encapsulation    Status        Native vlan
+Et0/0       on                    802.1q           trunking        1             
+Et0/1       on                    802.1q           trunking        1
+           （默认可以通过trunk链路的vlan）
+Port        Vlans allowed on trunk
+Et0/0       1-4094
+Et0/1       1-4094
+
+Port        Vlans allowed and active in management domain
+Et0/0       1
+Et0/1       1
+
+Port        Vlans in spanning tree forwarding state and not pruned
+Et0/0       1
+Et0/1       1
+
+6.在3台交换机上创建VLAN（vlan10，vlan20）
+SW1(config)#vlan 10
+SW1(config)#vlan 20
+
+SW2(config)#vlan 10
+SW2(config)#vlan 20
+
+SW3(config)#vlan 10
+SW3(config)#vlan 20
+
+7.在SW1上查看VLAN配置信息：
+SW1#show vlan
+
+VLAN         Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1               default                           active      Et0/2, Et0/3  （E0/0,和E0/1已经成为trunk接口，因此不属于默认vlan1）
+10             VLAN0010                     active              （创建的vlan10）
+20             VLAN0020                     active              （创建的vlan10）
+1002         fddi-default                   act/unsup 
+1003         token-ring-default        act/unsup 
+1004         fddinet-default              act/unsup 
+1005         trnet-default                  act/unsup 
+
+VLAN Type  SAID       MTU   Parent RingNo BridgeNo Stp  BrdgMode Trans1 Trans2
+---- ----- ---------- ----- ------ ------ -------- ---- -------- ------ ------
+1    enet  100001     1500  -      -      -        -    -        0      0   
+10   enet  100010     1500  -      -      -        -    -        0      0   
+20   enet  100020     1500  -      -      -        -    -        0      0   
+1002 fddi  101002     1500  -      -      -        -    -        0      0   
+1003 tr    101003     1500  -      -      -        -    -        0      0   
+1004 fdnet 101004     1500  -      -      -        ieee -        0      0   
+1005 trnet 101005     1500  -      -      -        ibm  -        0      0   
+
+Remote SPAN VLANs
+------------------------------------------------------------------------------
+          
+
+Primary Secondary Type              Ports
+------- --------- ----------------- ------------------------------------------
+
+8.在SW2，和SW3上查看VLAN信息：
+SW2#show vlan
+
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1    default                          active    Et0/1, Et0/2, Et0/3  
+10   VLAN0010                         active    
+20   VLAN0020                         active    
+1002 fddi-default                     act/unsup 
+1003 token-ring-default               act/unsup 
+1004 fddinet-default                  act/unsup 
+1005 trnet-default                    act/unsup 
+
+VLAN Type  SAID       MTU   Parent RingNo BridgeNo Stp  BrdgMode Trans1 Trans2
+---- ----- ---------- ----- ------ ------ -------- ---- -------- ------ ------
+1    enet  100001     1500  -      -      -        -    -        0      0   
+10   enet  100010     1500  -      -      -        -    -        0      0   
+20   enet  100020     1500  -      -      -        -    -        0      0   
+1002 fddi  101002     1500  -      -      -        -    -        0      0   
+1003 tr    101003     1500  -      -      -        -    srb      0      0   
+1004 fdnet 101004     1500  -      -      -        ieee -        0      0   
+1005 trnet 101005     1500  -      -      -        ibm  -        0      0   
+
+Remote SPAN VLANs
+------------------------------------------------------------------------------
+          
+
+Primary Secondary Type              Ports
+------- --------- ----------------- ------------------------------------------
+
+************************************************************************************************************************************************************
+SW3#show vlan
+
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1    default                          active    Et0/1, Et0/2, Et0/3
+10   VLAN0010                         active    
+20   VLAN0020                         active    
+1002 fddi-default                     act/unsup 
+1003 token-ring-default               act/unsup 
+1004 fddinet-default                  act/unsup 
+1005 trnet-default                    act/unsup 
+
+VLAN Type  SAID       MTU   Parent RingNo BridgeNo Stp  BrdgMode Trans1 Trans2
+---- ----- ---------- ----- ------ ------ -------- ---- -------- ------ ------
+1    enet  100001     1500  -      -      -        -    -        0      0   
+10   enet  100010     1500  -      -      -        -    -        0      0   
+20   enet  100020     1500  -      -      -        -    -        0      0   
+1002 fddi  101002     1500  -      -      -        -    -        0      0   
+1003 tr    101003     1500  -      -      -        -    srb      0      0   
+1004 fdnet 101004     1500  -      -      -        ieee -        0      0   
+1005 trnet 101005     1500  -      -      -        ibm  -        0      0   
+
+Remote SPAN VLANs
+------------------------------------------------------------------------------
+          
+
+Primary Secondary Type              Ports
+------- --------- ----------------- ------------------------------------------
+
+9.将SW2，SW3的 e0/1和e0/2划分进vlan10和vlan20
+SW2(config)#interface ethernet 0/1
+SW2(config-if)#switchport mode access （将接口手工定义为Access，不使用DTP自动协商）
+SW2(config-if)#switchport access vlan 10 （将接口划分进vlan10）
+SW2(config)#interface ethernet 0/2
+SW2(config-if)#switchport mode access 
+SW2(config-if)#switchport access vlan 20
+
+SW3(config)#interface ethernet 0/1
+SW3(config-if)#switchport mode access 
+SW3(config-if)#switchport access vlan 10
+SW3(config)#interface ethernet 0/2
+SW3(config-if)#switchport mode access 
+SW3(config-if)#switchport access vlan 20
+
+10.在SW2，SW3上查看接口划分状态：
+SW2#show vlan
+
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1    default                          active    Et0/3
+10   VLAN0010                         active    Et0/1 （e0/1口进入了vlan10，默认在vlan1）
+20   VLAN0020                         active    Et0/2（ e0/2口进入了vlan20，默认在vlan1）
+1002 fddi-default                     act/unsup 
+1003 token-ring-default               act/unsup 
+1004 fddinet-default                  act/unsup 
+1005 trnet-default                    act/unsup 
+
+VLAN Type  SAID       MTU   Parent RingNo BridgeNo Stp  BrdgMode Trans1 Trans2
+---- ----- ---------- ----- ------ ------ -------- ---- -------- ------ ------
+1    enet  100001     1500  -      -      -        -    -        0      0   
+10   enet  100010     1500  -      -      -        -    -        0      0   
+20   enet  100020     1500  -      -      -        -    -        0      0   
+1002 fddi  101002     1500  -      -      -        -    -        0      0   
+1003 tr    101003     1500  -      -      -        -    srb      0      0   
+1004 fdnet 101004     1500  -      -      -        ieee -        0      0   
+1005 trnet 101005     1500  -      -      -        ibm  -        0      0   
+
+Remote SPAN VLANs
+------------------------------------------------------------------------------
+          
+
+Primary Secondary Type              Ports
+------- --------- ----------------- ------------------------------------------
+
+*******************************************************************************************************************************************************
+SW3#show vlan
+
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1    default                          active    Et0/3
+10   VLAN0010                         active    Et0/1 （e0/1口进入了vlan10，默认在vlan1）
+20   VLAN0020                         active    Et0/2 （ e0/2口进入了vlan20，默认在vlan1）
+1002 fddi-default                     act/unsup 
+1003 token-ring-default               act/unsup 
+1004 fddinet-default                  act/unsup 
+1005 trnet-default                    act/unsup 
+
+VLAN Type  SAID       MTU   Parent RingNo BridgeNo Stp  BrdgMode Trans1 Trans2
+---- ----- ---------- ----- ------ ------ -------- ---- -------- ------ ------
+1    enet  100001     1500  -      -      -        -    -        0      0   
+10   enet  100010     1500  -      -      -        -    -        0      0   
+20   enet  100020     1500  -      -      -        -    -        0      0   
+1002 fddi  101002     1500  -      -      -        -    -        0      0   
+1003 tr    101003     1500  -      -      -        -    srb      0      0   
+1004 fdnet 101004     1500  -      -      -        ieee -        0      0   
+1005 trnet 101005     1500  -      -      -        ibm  -        0      0   
+
+Remote SPAN VLANs
+------------------------------------------------------------------------------
+          
+
+Primary Secondary Type              Ports
+------- --------- ----------------- ------------------------------------------
+
+11.测试PC连通性（PC4和PC6同属vlan10可以通信，PC5和PC7同属vlan20可以通信，其他不行）：
+PC4> ping 10.1.1.3 （PC6）
+
+84 bytes from 10.1.1.3 icmp_seq=1 ttl=64 time=5.115 ms
+84 bytes from 10.1.1.3 icmp_seq=2 ttl=64 time=2.546 ms
+84 bytes from 10.1.1.3 icmp_seq=3 ttl=64 time=5.386 ms
+84 bytes from 10.1.1.3 icmp_seq=4 ttl=64 time=5.217 ms
+84 bytes from 10.1.1.3 icmp_seq=5 ttl=64 time=4.869 ms
+
+VPCS> ping 10.1.1.2 （PC5）
+
+host (10.1.1.2) not reachable
+
+VPCS> ping 10.1.1.4 （PC7）
+
+host (10.1.1.4) not reachable
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

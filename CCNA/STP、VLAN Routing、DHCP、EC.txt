@@ -1,0 +1,396 @@
+STP实验：3台交换机互联，SW3为VLAN1跟桥，SW2为VLAN1次跟桥
+
+1.STP是自动计算完成的，不需要做任何操作
+
+2.查看每台交换机STP信息（默认使用PVST+，因此默认只有vlan1）
+SW1#show spanning-tree 
+
+VLAN0001
+  Spanning tree enabled protocol ieee
+（根交换机的信息）
+  Root ID    Priority    32769  （优先级32768+vlan1）
+             Address     aabb.cc00.1000  （交换机MAC地址）
+             This bridge is the root  （SW1交换机是vlan1的根桥）
+             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec  （BPDU2秒发一次，死亡时间20秒，转发延迟15秒）
+（当前交换机的信息）
+  Bridge ID  Priority    32769  (priority 32768 sys-id-ext 1)
+             Address     aabb.cc00.1000
+             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec
+             Aging Time  300 sec
+                   
+Interface           Role      Sts      Cost      Prio.Nbr   Type
+（接口号      端口角色    状态     开销    接口优先级    类型）
+------------------- ---- --- --------- -------- --------------------------------
+Et0/0               Desg     FWD     100        128.1        P2p  
+Et0/1               Desg     FWD     100        128.2        P2p 
+Et0/2               Desg     FWD     100        128.3        P2p 
+Et0/3               Desg     FWD     100        128.4        P2p 
+
+*******************************************************************************************************************************************************************
+SW2#show spanning-tree 
+
+VLAN0001
+  Spanning tree enabled protocol ieee
+  Root ID    Priority    32769
+             Address     aabb.cc00.1000
+             Cost        100
+             Port        1 (Ethernet0/0)
+             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec
+
+  Bridge ID  Priority    32769  (priority 32768 sys-id-ext 1)
+             Address     aabb.cc00.2000
+             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec
+             Aging Time  300 sec
+
+Interface           Role Sts Cost      Prio.Nbr Type
+------------------- ---- --- --------- -------- --------------------------------
+Et0/0               Root FWD 100       128.1    P2p 
+Et0/1               Desg FWD 100       128.2    P2p 
+Et0/2               Desg FWD 100       128.3    P2p 
+Et0/3               Desg FWD 100       128.4    P2p 
+
+*******************************************************************************************************************************************************************
+SW3#show spanning-tree 
+
+VLAN0001
+  Spanning tree enabled protocol ieee
+  Root ID    Priority    32769
+             Address     aabb.cc00.1000
+             Cost        100
+             Port        2 (Ethernet0/1)
+             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec
+
+  Bridge ID  Priority    32769  (priority 32768 sys-id-ext 1)
+             Address     aabb.cc00.3000
+             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec
+             Aging Time  300 sec
+
+Interface           Role Sts Cost      Prio.Nbr Type
+------------------- ---- --- --------- -------- --------------------------------
+Et0/0               Altn  BLK   100       128.1    P2p   （注意：SW3的e0/0接口阻塞状态）
+Et0/1               Root FWD 100       128.2    P2p 
+Et0/2               Desg FWD 100       128.3    P2p 
+Et0/3               Desg FWD 100       128.4    P2p 
+
+3.让SW3成为vlan1的根桥，SW2成为vlan1的次根桥：
+SW3(config)#spanning-tree vlan 1 root primary
+SW2(config)#spanning-tree vlan 1 root secondary 
+
+4.查看修改后3台交换机的STP信息：
+SW3#show spanning-tree 
+
+VLAN0001
+  Spanning tree enabled protocol ieee
+  Root ID    Priority    24577  （优先级降低为24576，一定是4096的倍数）
+             Address     aabb.cc00.3000
+             This bridge is the root  （SW3现在是vlan1的根桥）
+             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec
+
+  Bridge ID  Priority    24577  (priority 24576 sys-id-ext 1)
+             Address     aabb.cc00.3000
+             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec
+             Aging Time  15  sec
+
+Interface           Role Sts Cost      Prio.Nbr Type
+------------------- ---- --- --------- -------- --------------------------------
+Et0/0               Desg FWD 100       128.1    P2p 
+Et0/1               Desg FWD 100       128.2    P2p 
+Et0/2               Desg FWD 100       128.3    P2p 
+Et0/3               Desg FWD 100       128.4    P2p 
+
+*********************************************************************************************************************************************************************
+SW2#show spanning-tree 
+
+VLAN0001
+  Spanning tree enabled protocol ieee
+  Root ID    Priority    24577  
+             Address     aabb.cc00.3000
+             Cost        100
+             Port        2 (Ethernet0/1)
+             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec
+
+  Bridge ID  Priority    28673  (priority 28672 sys-id-ext 1)  （SW2优先级降低为28672，比根桥大，比默认小）
+             Address     aabb.cc00.2000
+             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec
+             Aging Time  300 sec
+
+Interface           Role Sts Cost      Prio.Nbr Type
+------------------- ---- --- --------- -------- --------------------------------
+Et0/0               Desg FWD 100       128.1    P2p 
+Et0/1               Root FWD 100       128.2    P2p 
+Et0/2               Desg FWD 100       128.3    P2p 
+Et0/3               Desg FWD 100       128.4    P2p 
+
+*********************************************************************************************************************************************************************
+SW1#show spanning-tree 
+
+VLAN0001
+  Spanning tree enabled protocol ieee
+  Root ID    Priority    24577
+             Address     aabb.cc00.3000
+             Cost        100
+             Port        2 (Ethernet0/1)
+             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec
+
+  Bridge ID  Priority    32769  (priority 32768 sys-id-ext 1)
+             Address     aabb.cc00.1000
+             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec
+             Aging Time  300 sec
+
+Interface           Role Sts Cost      Prio.Nbr Type
+------------------- ---- --- --------- -------- --------------------------------
+Et0/0               Altn  BLK   100       128.1    P2p   （注意：SW1的e0/0接口阻塞状态）
+Et0/1               Root FWD 100       128.2    P2p 
+Et0/2               Desg FWD 100       128.3    P2p 
+Et0/3               Desg FWD 100       128.4    P2p 
+
+
+——————————————————————————————————————————————————————————————————————————————————————————————————————————————
+
+
+VLAN间路由实验：
+
+1.在交换机上创建vlan：
+Switch(config)#vlan 10
+Switch(config)#vlan 20
+
+2.将e0/0（连接路由器）口配置为trunk，e0/1和e0/2划分进不同vlan中：
+Switch(config)#interface ethernet 0/0
+Switch(config-if)#switchport trunk encapsulation dot1q 
+Switch(config-if)#switchport mode trunk 
+Switch(config)#interface ethernet 0/1   
+Switch(config-if)#switchport mode access 
+Switch(config-if)#switchport access vlan 10
+Switch(config)#interface ethernet 0/2
+Switch(config-if)#switchport mode access 
+Switch(config-if)#switchport access vlan 20
+
+3.在路由器上配置单臂路由：
+Router(config)#interface ethernet 0/0（主接口只打开，其它无配置）
+Router(config-if)#no shutdown 
+Router(config)#interface ethernet 0/0.10（创建0.10子接口）
+Router(config-subif)#encapsulation dot1Q 10 （子接口封装802.1Q标签，属于vlan10）
+Router(config-subif)#ip address 10.1.1.254 255.255.255.0 （配置子接口IP地址，这个地址是vlan10网段的网关）
+Router(config)#interface ethernet 0/0.20
+Router(config-subif)#encapsulation dot1Q 20
+Router(config-subif)#ip address 20.1.1.254 255.255.255.0
+
+4.在PC上配置IP地址及网关：
+PC1> ip 10.1.1.1 255.255.255.0 10.1.1.254
+PC2> ip 20.1.1.1 255.255.255.0 20.1.1.254
+
+5.在PC上测试不同vlan间的通信：
+PC1> ping 20.1.1.1
+
+84 bytes from 20.1.1.1 icmp_seq=1 ttl=63 time=9.622 ms
+84 bytes from 20.1.1.1 icmp_seq=2 ttl=63 time=4.985 ms
+84 bytes from 20.1.1.1 icmp_seq=3 ttl=63 time=5.279 ms
+84 bytes from 20.1.1.1 icmp_seq=4 ttl=63 time=1.860 ms
+84 bytes from 20.1.1.1 icmp_seq=5 ttl=63 time=2.441 ms
+
+
+
+————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+
+DHCP实验：R4为DHCP server给vlan10、vlan20分配地址
+
+1.DHCPServer上创建DHCP地址池：
+DHCPServer(config)#ip dhcp pool v10  （创建地址池“v10”）
+DHCPServer(dhcp-config)#network 10.1.1.0 255.255.255.0 （加入地址范围）
+DHCPServer(dhcp-config)#default-router 10.1.1.254 （默认网关）
+DHCPServer(dhcp-config)#domain-name cisco.com （域名）
+DHCPServer(dhcp-config)#dns-server 8.8.8.8 （DNS服务器）
+DHCPServer(dhcp-config)#lease 1 12 （租期1天12小时）
+DHCPServer(config)#ip dhcp excluded-address 10.1.1.1 10.1.1.55 （排除地址）
+
+DHCPServer(config)#ip dhcp pool v20
+DHCPServer(dhcp-config)#network 20.1.1.0 255.255.255.0
+DHCPServer(dhcp-config)#default-router 20.1.1.254
+DHCPServer(dhcp-config)#domain-name ccna.com
+DHCPServer(dhcp-config)#dns-server 9.9.9.9
+DHCPServer(dhcp-config)#lease 2 11
+DHCPServer(config)#ip dhcp excluded-address 20.1.1.1 20.1.1.66
+
+2.测试：PC6、PC7获取地址
+PC6> ip dhcp
+DORA IP 10.1.1.2/24 GW 10.1.1.254
+
+PC6> show ip
+
+NAME        : PC6[1]
+IP/MASK     : 10.1.1.2/24
+GATEWAY     : 10.1.1.254
+DNS         : 8.8.8.8  
+DHCP SERVER : 10.1.1.254
+DHCP LEASE  : 86376, 86400/43200/75600
+DOMAIN NAME : cisco.com
+MAC         : 00:50:79:66:68:06
+LPORT       : 20000
+RHOST:PORT  : 127.0.0.1:30000
+MTU         : 1500
+
+
+
+
+PC7> ip dhcp
+DDORA IP 20.1.1.2/24 GW 20.1.1.254
+
+PC7> sho ip
+
+NAME        : PC7[1]
+IP/MASK     : 20.1.1.2/24
+GATEWAY     : 20.1.1.254
+DNS         : 9.9.9.9  
+DHCP SERVER : 20.1.1.254
+DHCP LEASE  : 86395, 86400/43200/75600
+DOMAIN NAME : ccna.com
+MAC         : 00:50:79:66:68:07
+LPORT       : 20000
+RHOST:PORT  : 127.0.0.1:30000
+MTU         : 1500
+
+
+
+
+——————————————————————————————————————————————————————————————————————————————————————————————————————————
+
+
+
+
+EtherChannel实验:将SW1、SW2的E0/0、E0/1口绑定EtherChannel，使用LACP
+
+1.配置SW1的e0/0和0/1物理接口：
+SW1(config)#interface range ethernet 0/0 - 1  （同时对0/0和0/1口配置）
+SW1(config-if-range)#channel-group 1 mode active  （将两个物理接口加入port-channel 1，模式为active）
+
+SW1(config)#interface range ethernet 0/0 - 1 
+SW2(config-if-range)#channel-group 1 mode active 
+
+2.创建port-channel 1接口，配置trunk（注意，在port-channel 1下配置的命令，会同时对所有port-channel 1下的物理接口生效）
+SW1(config)#interface port-channel 1
+SW1(config-if)#switchport trunk encapsulation dot1q 
+SW1(config-if)#switchport mode trunk 
+
+SW2(config)#interface port-channel 1
+SW2(config-if)#switchport trunk encapsulation dot1q 
+SW2(config-if)#switchport mode trunk 
+
+3.查看接口信息：
+SW1#show interfaces status  （查看接口身份）
+
+Port      Name               Status       Vlan       Duplex  Speed Type 
+Et0/0                        connected    trunk      a-full   auto RJ45    
+Et0/1                        connected    trunk      a-full   auto RJ45
+Et0/2                        connected    1             a-full   auto RJ45
+Et0/3                        connected    1             a-full   auto RJ45
+Po1                          connected    trunk       a-full   auto        （注意：e0/0和e0/1没配置trunk，但是他们在port-channel 1下，因此命令也同样生效）
+
+4.查看STP：
+SW1#show spanning-tree 
+
+VLAN0001
+  Spanning tree enabled protocol ieee
+  Root ID    Priority    32769
+             Address     aabb.cc00.1000
+             This bridge is the root
+             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec
+
+  Bridge ID  Priority    32769  (priority 32768 sys-id-ext 1)
+             Address     aabb.cc00.1000
+             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec
+             Aging Time  300 sec
+
+Interface           Role Sts Cost      Prio.Nbr Type
+------------------- ---- --- --------- -------- --------------------------------
+Et0/2               Desg FWD 100       128.3    P2p 
+Et0/3               Desg FWD 100       128.4    P2p 
+Po1                 Desg FWD 56        128.65   P2p （注意：此时STP中没有e0/0和e0/1物理口，只存在port-channel 1接口）
+
+5.查看port-channel 1接口具体信息：
+SW1#show interfaces port-channel 1
+Port-channel1 is up, line protocol is up (connected) 
+  Hardware is EtherChannel, address is aabb.cc00.1010 (bia aabb.cc00.1010)
+  MTU 1500 bytes, BW 20000 Kbit/sec, DLY 1000 usec, 
+     reliability 255/255, txload 1/255, rxload 1/255
+  Encapsulation ARPA, loopback not set
+  Keepalive set (10 sec)
+  Full-duplex, Auto-speed, media type is RJ45
+  input flow-control is off, output flow-control is unsupported 
+  Members in this channel: Et0/0 Et0/1 
+  ARP type: ARPA, ARP Timeout 04:00:00
+  Last input 00:10:25, output never, output hang never
+  Last clearing of "show interface" counters never
+  Input queue: 0/2000/0/0 (size/max/drops/flushes); Total output drops: 0
+  Queueing strategy: fifo
+  Output queue: 0/40 (size/max)
+  5 minute input rate 0 bits/sec, 0 packets/sec
+  5 minute output rate 0 bits/sec, 0 packets/sec
+     4 packets input, 158 bytes, 0 no buffer
+     Received 4 broadcasts (0 multicasts)
+     0 runts, 0 giants, 0 throttles 
+     0 input errors, 0 CRC, 0 frame, 0 overrun, 0 ignored
+     0 input packets with dribble condition detected
+     462 packets output, 42694 bytes, 0 underruns
+     0 output errors, 0 collisions, 0 interface resets
+     0 unknown protocol drops
+     0 babbles, 0 late collision, 0 deferred
+     0 lost carrier, 0 no carrier
+     0 output buffer failures, 0 output buffers swapped out
+
+6.查看etherchannel汇总信息：
+SW1#show etherchannel summary 
+Flags:  D - down        P - bundled in port-channel
+        I - stand-alone s - suspended
+        H - Hot-standby (LACP only)
+        R - Layer3      S - Layer2
+        U - in use      N - not in use, no aggregation
+        f - failed to allocate aggregator
+
+        M - not in use, minimum links not met
+        m - not in use, port not aggregated due to minimum links not met
+        u - unsuitable for bundling
+        w - waiting to be aggregated
+        d - default port
+
+        A - formed by Auto LAG
+
+
+Number of channel-groups in use: 1
+Number of aggregators:           1
+
+（组号     信道类型       建立协议     哪些接口属于这个信道 
+Group  Port-channel  Protocol    Ports
+------+-------------+-----------+-----------------------------------------------
+1             Po1(SU)         LACP      Et0/0(P)    Et0/1(P)    
+
+7.查看指定的EtherChannel所包含的接口
+SW1#show etherchannel port-channel 
+                Channel-group listing: 
+                ----------------------
+
+Group: 1 
+----------
+                Port-channels in the group: 
+                ---------------------------
+
+Port-channel: Po1    (Primary Aggregator)
+
+------------
+
+Age of the Port-channel   = 0d:00h:16m:21s
+Logical slot/port   = 16/0          Number of ports = 2
+HotStandBy port = null 
+Port state          = Port-channel Ag-Inuse 
+Protocol            =   LACP
+Port security       = Disabled
+Load share deferral = Disabled   
+
+Ports in the Port-channel: 
+
+Index   Load   Port     EC state        No of bits
+------+------+------+------------------+-----------
+  0     00     Et0/0    Active             0
+  0     00     Et0/1    Active             0
+
+Time since last port bundled:    0d:00h:15m:15s    Et0/0
+

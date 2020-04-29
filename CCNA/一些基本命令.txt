@@ -1,0 +1,37 @@
+Router#show clock 产看当前IOS系统时间
+Router#clock set 时 分 秒 月 日 年
+Router#clock set 11:11:11 Nov 11 2011
+Router(config)#clock timezone GMT +8 配置时区
+Router>enable 从用户模式进入特权模式
+Router#configure terminal 从特权模式进入全局模式
+Router(config)#hostname CCNA 修改设备名称“CCNA”
+CCNA#show running-config 查看当前运行的配置信息
+CCNA#copy running-config startup-config  将RAM中运行的配置文件进行保存(NVRAM)
+CCNA#write 意义同上
+CCNA#copy running-config tftp:10.1.1.1  将RAM中运行的配置文件保存到远端TFTP服务器上（地址10.1.1.1）
+CCNA#reload 重启设备
+CCNA#erase startup-config 删除NVRAM中保存的配置信息
+CCNA(config)#no enable password cisco123  删除当前命令
+CCNA#show ip route 查看路由表
+CCNA#show ip interface brief 查看接口信息
+CCNA#show history 查看最后配置的10条命令（无论对错）
+CCNA(config-if)#description R1 to R2e0/0 接口描述信息
+CCNA(config)#interface ethernet 0/0  进入接口e0/0
+CCNA(config-if)#ip address 192.168.1.1 255.255.255.0 配置接口IP地址为192.168.1.1/24
+CCNA(config-if)#no shutdown 开启接口
+CCNA#show running-config | begin interface  查看以配置中第一个出现的“interface”为准，以后所有的命令
+CCNA#show running-config | include interface 查看只包含“interface”的命令
+CCNA#show running-config | section interface  查看包含“interface”及与其相关联的命令
+CCNA#show running-config | exclude interface  查看除“interface”以外所有命令
+CCNA#show interfaces ethernet 0/0 查看e0/0接口具体信息
+CCNA#show version 查看设备版本信息
+CCNA(config)#ip default-gateway 192.168.1.254  指定默认网关为“192.168.1.254”
+
+
+
+
+
+
+
+
+

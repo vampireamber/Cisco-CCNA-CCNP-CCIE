@@ -1,0 +1,129 @@
+1.配置接口IP地址，测试直连（省略......）
+
+2.启用EIGRP：
+R1(config)#router eigrp 100
+R1(config-router)#network 1.1.1.0 0.0.0.255
+R1(config-router)#network 12.1.1.0 0.0.0.255
+
+R2(config)#router eigrp 100
+R2(config-router)#network 2.2.2.0 0.0.0.255
+R2(config-router)#network 12.1.1.0 0.0.0.255
+R2(config-router)#network 23.1.1.0 0.0.0.255
+
+R3(config)#router eigrp 100
+R3(config-router)#network 3.3.3.0 0.0.0.255
+R3(config-router)#network 23.1.1.0 0.0.0.255
+
+3.R1查看邻居表：
+R1#show ip eigrp neighbors 
+EIGRP-IPv4 Neighbors for AS(100)
+H   Address                 Interface              Hold Uptime   SRTT   RTO  Q  Seq
+                                                   (sec)         (ms)       Cnt Num
+0   12.1.1.2                Et0/0                    13 00:00:39   10   100  0  7
+
+4.R1查看拓扑表：
+R1#show ip eigrp topology 
+EIGRP-IPv4 Topology Table for AS(100)/ID(1.1.1.1)
+Codes: P - Passive, A - Active, U - Update, Q - Query, R - Reply,
+       r - reply Status, s - sia Status 
+
+P 2.2.2.0/24, 1 successors, FD is 409600
+        via 12.1.1.2 (409600/128256), Ethernet0/0
+P 23.1.1.0/24, 1 successors, FD is 307200
+        via 12.1.1.2 (307200/281600), Ethernet0/0
+P 3.3.3.0/24, 1 successors, FD is 435200
+        via 12.1.1.2 (435200/409600), Ethernet0/0
+P 12.1.1.0/24, 1 successors, FD is 281600
+        via Connected, Ethernet0/0
+P 1.1.1.0/24, 1 successors, FD is 128256
+        via Connected, Loopback0
+
+5.R1查看路由表：
+R1#sho ip route 
+Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area 
+       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2
+       E1 - OSPF external type 1, E2 - OSPF external type 2
+       i - IS-IS, su - IS-IS summary, L1 - IS-IS level-1, L2 - IS-IS level-2
+       ia - IS-IS inter area, * - candidate default, U - per-user static route
+       o - ODR, P - periodic downloaded static route, H - NHRP, l - LISP
+       a - application route
+       + - replicated route, % - next hop override, p - overrides from PfR
+
+Gateway of last resort is not set
+
+      1.0.0.0/8 is variably subnetted, 2 subnets, 2 masks
+C        1.1.1.0/24 is directly connected, Loopback0
+L        1.1.1.1/32 is directly connected, Loopback0
+      2.0.0.0/24 is subnetted, 1 subnets
+D        2.2.2.0 [90/409600] via 12.1.1.2, 00:02:25, Ethernet0/0
+      3.0.0.0/24 is subnetted, 1 subnets
+D        3.3.3.0 [90/435200] via 12.1.1.2, 00:02:06, Ethernet0/0
+      12.0.0.0/8 is variably subnetted, 2 subnets, 2 masks
+C        12.1.1.0/24 is directly connected, Ethernet0/0
+L        12.1.1.1/32 is directly connected, Ethernet0/0
+      23.0.0.0/24 is subnetted, 1 subnets
+D        23.1.1.0 [90/307200] via 12.1.1.2, 00:02:23, Ethernet0/0
+
+6.查看R1路由协议：
+R1#show ip protocols 
+*** IP Routing is NSF aware ***
+
+Routing Protocol is "application"
+  Sending updates every 0 seconds
+  Invalid after 0 seconds, hold down 0, flushed after 0
+  Outgoing update filter list for all interfaces is not set
+  Incoming update filter list for all interfaces is not set
+  Maximum path: 32
+  Routing for Networks:
+  Routing Information Sources:
+    Gateway         Distance      Last Update
+  Distance: (default is 4)
+
+Routing Protocol is "eigrp 100"
+  Outgoing update filter list for all interfaces is not set
+  Incoming update filter list for all interfaces is not set
+  Default networks flagged in outgoing updates
+  Default networks accepted from incoming updates
+  EIGRP-IPv4 Protocol for AS(100)
+    Metric weight K1=1, K2=0, K3=1, K4=0, K5=0
+    Soft SIA disabled
+    NSF-aware route hold timer is 240
+    Router-ID: 1.1.1.1
+    Topology : 0 (base) 
+      Active Timer: 3 min
+      Distance: internal 90 external 170
+      Maximum path: 4
+      Maximum hopcount 100
+      Maximum metric variance 1
+
+  Automatic Summarization: disabled
+  Maximum path: 4
+  Routing for Networks:
+    1.1.1.0/24
+    12.1.1.0/24
+  Routing Information Sources:
+    Gateway         Distance      Last Update
+    12.1.1.2              90      00:02:53
+  Distance: internal 90 external 170
+
+7.查看启用EIGRP接口信息：
+R1# show ip eigrp interfaces 
+EIGRP-IPv4 Interfaces for AS(100)
+                              Xmit Queue   PeerQ        Mean   Pacing Time   Multicast    Pending
+Interface              Peers  Un/Reliable  Un/Reliable  SRTT   Un/Reliable   Flow Timer   Routes
+Lo0                      0        0/0       0/0           0       0/0            0           0
+Et0/0                    1        0/0       0/0          10       0/2           50           0
+
+8.测试连通性：
+R1#ping 3.3.3.3 source 1.1.1.1
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 3.3.3.3, timeout is 2 seconds:
+Packet sent with a source address of 1.1.1.1 
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 1/1/2 ms
+R1#ping 2.2.2.2
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 2.2.2.2, timeout is 2 seconds:
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 1/1/1 ms

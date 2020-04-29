@@ -1,0 +1,246 @@
+配置单区域OSPF实验：
+
+1.接口配置IP地址：
+R1(config)#interface loopback 0
+R1(config-if)#ip address 1.1.1.1 255.255.255.0
+R1(config)#interface ethernet 0/0
+R1(config-if)#ip address 123.1.1.1 255.255.255.0  
+R1(config-if)#no shutdown 
+
+R2(config)#interface loopback 0 
+R2(config-if)#ip address 2.2.2.2 255.255.255.0
+R2(config)#interface ethernet 0/0
+R2(config-if)#ip address 123.1.1.2 255.255.255.0
+R2(config-if)#no shutdown 
+
+R3(config)#interface loopback 0
+R3(config-if)#ip address 3.3.3.3 255.255.255.0
+R3(config)#interface ethernet 0/0 
+R3(config-if)#ip address 123.1.1.3 255.255.255.0
+R3(config-if)#no shutdown 
+
+2.测试直连设备连通性：省略...
+
+3.配置OSPF单区域（Area 0）：
+R1(config)#router ospf 100 （启用OSPF，100是ospf的进程号。注意：OSPF进程号不相同可以建立邻居关系，但是NA阶段我们必须配置为相同的进程号。）
+R1(config-router)#network 1.1.1.0 0.0.0.255 area 0 （更精细的宣告网络号，后边跟的是通配符掩码，区域ID）
+R1(config-router)#network 123.1.1.0 0.0.0.255 area 0 
+
+R2(config)#router ospf 100
+R2(config-router)#network 123.1.1.0 0.0.0.255 area 0
+R2(config-router)#network 2.2.2.0 0.0.0.255 area 0
+
+R3(config)#router ospf 100
+R3(config-router)#network 123.1.1.0 0.0.0.255 area 0
+R3(config-router)#network 3.3.3.0 0.0.0.255 area 0 
+
+4.测试及查看：
+4.1查看邻居表：（默认优先级相同，R3loopback接口地址最大，因此R3是DR）
+R1#show ip ospf neighbor 
+(邻居RID        优先级     状态/角色        死亡时间     邻居接口地址   自己的物理接口 )
+Neighbor ID     Pri        State           Dead Time       Address          Interface
+2.2.2.2               1        FULL/BDR        00:00:36       123.1.1.2        Ethernet0/0
+3.3.3.3               1        FULL/DR          00:00:34       123.1.1.3        Ethernet0/0
+
+4.2查看拓扑表：（NA不要求）
+R1#show ip ospf database 
+
+            OSPF Router with ID (1.1.1.1) (Process ID 100)
+
+                Router Link States (Area 0)
+
+Link ID         ADV Router      Age         Seq#       Checksum Link count
+1.1.1.1         1.1.1.1         229         0x80000018 0x001DD9 2
+2.2.2.2         2.2.2.2         226         0x80000016 0x0011DA 2
+3.3.3.3         3.3.3.3         226         0x80000010 0x000DD7 2
+
+                Net Link States (Area 0)
+
+Link ID         ADV Router      Age         Seq#       Checksum
+123.1.1.3       3.3.3.3         235         0x80000002 0x00EDA2
+
+4.3查看路由表：（注意：loopback接口在路由表中显示为32位路由，这个正常，原因在于接口类型，NA不要求）
+R1#show ip route 
+Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area 
+       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2
+       E1 - OSPF external type 1, E2 - OSPF external type 2
+       i - IS-IS, su - IS-IS summary, L1 - IS-IS level-1, L2 - IS-IS level-2
+       ia - IS-IS inter area, * - candidate default, U - per-user static route
+       o - ODR, P - periodic downloaded static route, H - NHRP, l - LISP
+       a - application route
+       + - replicated route, % - next hop override, p - overrides from PfR
+
+Gateway of last resort is not set
+
+      1.0.0.0/8 is variably subnetted, 2 subnets, 2 masks
+C        1.1.1.0/24 is directly connected, Loopback0
+L        1.1.1.1/32 is directly connected, Loopback0
+      2.0.0.0/32 is subnetted, 1 subnets
+O        2.2.2.2 [110/11] via 123.1.1.2, 00:04:44, Ethernet0/0
+      3.0.0.0/32 is subnetted, 1 subnets
+O        3.3.3.3 [110/11] via 123.1.1.3, 00:04:44, Ethernet0/0
+      123.0.0.0/8 is variably subnetted, 2 subnets, 2 masks
+C        123.1.1.0/24 is directly connected, Ethernet0/0
+L        123.1.1.1/32 is directly connected, Ethernet0/0
+
+4.4查看路由器上启用的路由协议：
+R1#show ip protocols 
+前边省略....
+
+Routing Protocol is "ospf 100" （进程号为100）
+  Outgoing update filter list for all interfaces is not set （出方向接口无过滤，NA不要求）
+  Incoming update filter list for all interfaces is not set
+  Router ID 1.1.1.1 （路由器的Router-ID）
+  Number of areas in this router is 1. 1 normal 0 stub 0 nssa （有一个不同区域，没有末节区域或非完全末节区域，NA不要求）
+  Maximum path: 4 （默认支持4条路径等价负载均衡）
+  Routing for Networks: （宣告的网络）
+    1.1.1.0 0.0.0.255 area 0
+    123.1.1.0 0.0.0.255 area 0
+  Routing Information Sources: （路由信息的来源，意思就是说谁给你发过LSA）
+    Gateway         Distance      Last Update
+    3.3.3.3              110            00:07:08
+    2.2.2.2              110            00:07:08
+  Distance: (default is 110) （协议默认管理距离110）
+
+4.5查看某个具体接口OSPF信息：
+R1#show ip ospf interface ethernet 0/0
+Ethernet0/0 is up, line protocol is up 
+  Internet Address 123.1.1.1/24, Area 0, Attached via Network Statement
+    （   进程号                 RID                            网络类型                 接口cost）
+  Process ID 100, Router ID 1.1.1.1, Network Type BROADCAST, Cost: 10
+  Topology-MTID    Cost    Disabled    Shutdown      Topology Name
+        0           10        no          no            Base
+  Transmit Delay is 1 sec, State DROTHER, Priority 1（接口优先级为1）
+  Designated Router (ID) 3.3.3.3, Interface address 123.1.1.3 （DR的RID，和DR的物理接口地址）
+  Backup Designated router (ID) 2.2.2.2, Interface address 123.1.1.2（BDR的....）
+  Timer intervals configured, Hello 10, Dead 40, Wait 40, Retransmit 5（接口发送时间hello10秒，死亡40秒，等待40秒，重传5秒:）
+    oob-resync timeout 40
+    Hello due in 00:00:07
+  Supports Link-local Signaling (LLS)
+  Cisco NSF helper support enabled
+  IETF NSF helper support enabled
+  Index 1/2/2, flood queue length 0
+  Next 0x0(0)/0x0(0)/0x0(0)
+  Last flood scan length is 0, maximum is 3
+  Last flood scan time is 0 msec, maximum is 0 msec
+  Neighbor Count is 2, Adjacent neighbor count is 2 （这个接口连接有两个ospf邻居，都是邻接关系）
+    Adjacent with neighbor 2.2.2.2  (Backup Designated Router)
+    Adjacent with neighbor 3.3.3.3  (Designated Router)
+  Suppress hello for 0 neighbor(s)
+
+4.6测试连通性：
+R1#ping 2.2.2.2 source 1.1.1.1
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 2.2.2.2, timeout is 2 seconds:
+Packet sent with a source address of 1.1.1.1 
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 1/1/1 ms
+
+R1#ping 3.3.3.3 source 1.1.1.1
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 3.3.3.3, timeout is 2 seconds:
+Packet sent with a source address of 1.1.1.1 
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 1/1/1 ms
+
+5.修改R1 e0/0接口优先级为10，让R1成为DR
+R1(config)#interface ethernet 0/0
+R1(config-if)#ip ospf priority 10
+
+6.在3台路由器上都清空OSPF进程：
+R1#clear ip ospf process 
+Reset ALL OSPF processes? [no]: y
+
+7.在R2上查看邻居表：（发现R1成为DR，优先级为10）
+R2#show ip ospf neighbor 
+
+Neighbor ID     Pri   State           Dead Time   Address         Interface
+1.1.1.1          10   FULL/DR         00:00:37    123.1.1.1       Ethernet0/0
+3.3.3.3           1   FULL/BDR        00:00:35    123.1.1.3       Ethernet0/0
+
+————————————————————————————————————————————————————————————————————————
+配置多区域OSPF实验：
+1.配置接口IP地址：
+R1(config)#interface loopback 0  
+R1(config-if)#ip address 1.1.1.1 255.255.255.0
+R1(config)#interface ethernet 0/0
+R1(config-if)#ip address 12.1.1.1 255.255.255.0
+R1(config-if)#no shutdown 
+
+R2(config)#interface loopback 0
+R2(config-if)#ip address 2.2.2.2 255.255.255.0
+R2(config)#interface ethernet 0/0
+R2(config-if)#ip address 12.1.1.2 255.255.255.0
+R2(config-if)#no shutdown 
+R2(config)#interface ethernet 0/1
+R2(config-if)#ip address 23.1.1.2 255.255.255.0
+R2(config-if)#no shutdown 
+
+R3(config)#interface loopback 0 
+R3(config-if)#ip address 3.3.3.3 255.255.255.0
+R3(config)#interface ethernet 0/0
+R3(config-if)#ip address 23.1.1.3 255.255.255.0
+R3(config-if)#no shutdown 
+
+2.测试直连，省略...
+
+3.配合OSPF多区域：
+R1(config)#router ospf 100
+R1(config-router)#network 1.1.1.0 0.0.0.255 area 0
+R1(config-router)#network 12.1.1.0 0.0.0.255 area 0
+
+R2(config)#router ospf 100
+R2(config-router)#network 2.2.2.0 0.0.0.255 area 0
+R2(config-router)#network 12.1.1.0 0.0.0.255 area 0
+R2(config-router)#network 23.1.1.0 0.0.0.255 area 1（注意，区域应当配置为area 1）
+
+R3(config)#router ospf 100
+R3(config-router)#network 3.3.3.0 0.0.0.255 area 1
+R3(config-router)#network 23.1.1.0 0.0.0.255 area 1
+
+4.在R2上查看邻居表：（有两个邻居）
+R2#show ip ospf neighbor 
+
+Neighbor ID     Pri   State           Dead Time   Address         Interface
+1.1.1.1           1   FULL/BDR         00:00:36    12.1.1.1        Ethernet0/0
+3.3.3.3           1   FULL/DR           00:00:38    23.1.1.3        Ethernet0/1
+
+5.在R1上查看路由表：
+R1#show ip route 
+Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area 
+       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2
+       E1 - OSPF external type 1, E2 - OSPF external type 2
+       i - IS-IS, su - IS-IS summary, L1 - IS-IS level-1, L2 - IS-IS level-2
+       ia - IS-IS inter area, * - candidate default, U - per-user static route
+       o - ODR, P - periodic downloaded static route, H - NHRP, l - LISP
+       a - application route
+       + - replicated route, % - next hop override, p - overrides from PfR
+
+Gateway of last resort is not set
+
+      1.0.0.0/8 is variably subnetted, 2 subnets, 2 masks
+C        1.1.1.0/24 is directly connected, Loopback0
+L        1.1.1.1/32 is directly connected, Loopback0
+      2.0.0.0/32 is subnetted, 1 subnets
+O        2.2.2.2 [110/11] via 12.1.1.2, 00:03:21, Ethernet0/0
+      3.0.0.0/32 is subnetted, 1 subnets
+O IA     3.3.3.3 [110/21] via 12.1.1.2, 00:03:11, Ethernet0/0 （注意：这里出现O IA的路由，表示为从其他区域经过ABR路由器转发过来的路由，这里需要注意的是：区域间的路由【I OA】到本地不需要经过SPF计算，区域间路由可以直接放到路由表里使用）
+      12.0.0.0/8 is variably subnetted, 2 subnets, 2 masks
+C        12.1.1.0/24 is directly connected, Ethernet0/0
+L        12.1.1.1/32 is directly connected, Ethernet0/0
+      23.0.0.0/24 is subnetted, 1 subnets
+O IA     23.1.1.0 [110/20] via 12.1.1.2, 00:03:21, Ethernet0/0
+
+6.测试连通性：
+R1#ping 3.3.3.3 source 1.1.1.1
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 3.3.3.3, timeout is 2 seconds:
+Packet sent with a source address of 1.1.1.1 
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 1/1/2 ms
+
+
+
+
